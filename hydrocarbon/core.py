@@ -303,6 +303,9 @@ class FeedGenerator:
                 else:
                     print("Couldn't validate indicator {} as {}".format(item, key))
 
+            # Convert back to list for JSON serialisation
+            report["iocs"][key] = list(report["iocs"][key])
+
         return indicators
 
     @staticmethod
