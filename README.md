@@ -5,8 +5,10 @@ JSON format required for a Carbon Black alliance feed.  This can be imported
 into your Carbon Black server manually or by adding a Threat Intelligence
 feed, which will regularly update.
 
-It was written by David Cannings (@edeca) and released by NCC Group under
-the AGPL.
+It was written by David Cannings ([@edeca](https://twitter.com/edeca)) and 
+released by NCC Group under the AGPL.
+
+The latest code can be found in the [Github repository](https://github.com/edeca/hydrocarbon).
 
 # Why would I use it?
 
