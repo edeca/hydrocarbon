@@ -16,7 +16,7 @@ available then filesystem modification times will be used instead.
 The resulting JSON can be hosted on any webserver (preferably with
 authentication enabled) to serve the
 """
-import argparse
+
 import base64
 import re
 import ipaddress
@@ -32,6 +32,7 @@ from PIL import Image
 import yaml
 
 # TODO: Move to logging instead of print
+
 
 class FeedGenerator:
     """
@@ -80,8 +81,7 @@ class FeedGenerator:
             self._data_dirs.append(Path(data_dir).absolute().resolve())
 
         except FileNotFoundError:
-            self.errors.append(
-                "Cannot find data directory {}".format(data_dir))
+            self.errors.append("Cannot find data dir {}".format(data_dir))
             return False
 
         return True
@@ -93,15 +93,23 @@ class FeedGenerator:
 
             if optimum_width and width != optimum_width:
                 # TODO: log an error
-                print("Width of image {} does not match recommended {}".format(filename, optimum_width))
+                print(
+                    "Width of image {} does not match recommended {}".format(
+                        filename, optimum_width
+                    )
+                )
 
             if optimum_height and height != optimum_height:
                 # TODO: log an error
-                print("Height of image {} does not match recommended {}".format(filename, optimum_height))
+                print(
+                    "Height of image {} does not match recommended {}".format(
+                        filename, optimum_height
+                    )
+                )
 
             output = BytesIO()
-            img.save(output, format='PNG')
-            return base64.b64encode(output.getvalue()).decode('ascii')
+            img.save(output, format="PNG")
+            return base64.b64encode(output.getvalue()).decode("ascii")
 
     def add_icons(self, icon_large_fn, icon_small_fn):
         """
@@ -117,11 +125,10 @@ class FeedGenerator:
         """
 
         try:
-            with open(config_fn, 'r') as fh:
+            with open(config_fn, "r") as fh:
                 self._config = yaml.load(fh)
         except FileNotFoundError:
-            self.errors.append(
-                "Configuration file {} not found!".format(config_fn))
+            self.errors.append("Configuration file {} not found!".format(config_fn))
 
     @staticmethod
     def _get_git_repo(repo_dir):
@@ -140,9 +147,10 @@ class FeedGenerator:
         """
         Precompile frequently used regular expressions for speed.
         """
-        self._regex_md5 = re.compile(r'[0-9a-f]{32}', re.IGNORECASE)
+        self._regex_md5 = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
         self._regex_dns = re.compile(
-            r'((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}', re.IGNORECASE)
+            r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE
+        )
 
     def _validate_md5(self, value):
         """
@@ -209,7 +217,7 @@ class FeedGenerator:
         out = []
 
         try:
-            tags = report['meta']['tags']
+            tags = report["meta"]["tags"]
         except KeyError:
             return None
 
@@ -245,11 +253,13 @@ class FeedGenerator:
 
             # Check if this file is dirty or untracked
             if relative_name in repo.untracked_files or relative_name in changed:
-                print("warning: file is untracked or modified: {}".format(
-                    relative_name))
+                print(
+                    "warning: file is untracked or modified: {}".format(relative_name)
+                )
                 if self._git_strict:
                     self.errors.append(
-                        "Untracked or modified file: {}".format(relative_name))
+                        "Untracked or modified file: {}".format(relative_name)
+                    )
 
             else:
                 commit = next(repo.iter_commits(paths=relative_name))
@@ -263,7 +273,7 @@ class FeedGenerator:
         Create a unique path from
         """
         relative_name = filename.relative_to(current_dir)
-        return hashlib.sha256(str(relative_name).encode('utf-8')).hexdigest()
+        return hashlib.sha256(str(relative_name).encode("utf-8")).hexdigest()
 
     def _extract_indicators(self, iocs, report):
         """
@@ -272,101 +282,110 @@ class FeedGenerator:
         """
 
         indicators = 0
-        valid_keys = ['md5', 'ipv4', 'ipv6', 'dns']
+        valid_keys = ["md5", "ipv4", "ipv6", "dns"]
 
         for key, data in iocs.items():
             if key not in valid_keys:
                 # TODO: Log an error
                 continue
 
-            report['iocs'][key] = []
+            report["iocs"][key] = set()
 
-            validator = getattr(self, '_validate_{}'.format(key))
+            validator = getattr(self, "_validate_{}".format(key))
 
             for item in data:
                 validated = validator(item)
 
                 if validated:
-                    # TODO: Unique the indicators here
+                    # TODO: Unique the indicators here (consider using a set)
                     indicators += 1
-                    report['iocs'][key].append(validated)
+                    report["iocs"][key].add(validated)
                 else:
-                    print(
-                        "Couldn't validate indicator {} as {}".format(
-                            item, key))
+                    print("Couldn't validate indicator {} as {}".format(item, key))
 
         return indicators
 
-    def _extract_query(self, query, report):
+    @staticmethod
+    def _extract_query(query, report):
 
         qry = {}
-        valid_types = ['events', 'modules']
+        valid_types = ["events", "modules"]
 
         try:
-            if query['type'] in valid_types:
-                qry['index_type'] = query['type']
+            if query["type"] in valid_types:
+                qry["index_type"] = query["type"]
             else:
                 # TODO: Log an error
                 return 0
 
             # TODO: Check it doesn't start q=
-            search = query['search']
+            search = query["search"]
 
             if search.startswith("q="):
-                print("Warning: search query starts with q=, this is not necessary and should be removed")
+                print(("Warning: search query starts with q=, this "
+                       "is not necessary and should be removed"))
                 search = search[2:]
 
-            qry['search_query'] = "q={}".format(urllib.parse.quote(search))
+            qry["search_query"] = "q={}".format(urllib.parse.quote(search))
 
         except KeyError:
             print("Error: did not find required query data, please see the template")
             return 0
 
-        report['iocs']['query'] = [ qry ]
+        report["iocs"]["query"] = [qry]
         return 1
-
 
     def _parse_file(self, filename, current_dir, repo=None):
         """
         Parse a single data file and return the corresponding report
         structure, or None if parsing fails.
         """
-        report = {}
-        report['iocs'] = {}
+        report = {'iocs': {}}
         indicators = 0
         queries = 0
 
-        with open(str(filename), 'r') as fh:
+        with open(str(filename), "r") as fh:
             data = yaml.load(fh)
 
-        required_fields = ['link', 'title', 'score']
-        if not self._copy_keys(data['meta'], report, required_fields, True):
+        # TODO: Check it has the basic keys
+        if not "meta" in data:
+            print("error: meta section is missing")
+            return None
+
+        if not ("query" in data or "iocs" in data):
+            print("error: data does not contain a query or iocs")
+            return None
+
+        required_fields = ["link", "title", "score"]
+        if not self._copy_keys(data["meta"], report, required_fields, True):
             return None
 
         tags = self._extract_tags(data)
         if tags:
-            report['tags'] = tags
+            report["tags"] = tags
 
         # Unique ID is the SHA256 of filename.  Filenames can contain
         # non-ASCII bytes, spaces, etc.
-        report['id'] = self._create_unique_id(filename, current_dir)
+        report["id"] = self._create_unique_id(filename, current_dir)
 
         # Get the timestamp, either from git (preferred) or filesystem
-        report['timestamp'] = self._get_modification_time(filename, repo)
+        report["timestamp"] = self._get_modification_time(filename, repo)
 
         # To enable deletion of reports we need to generate an item with
         # an updated timestamp but no indicators.
-        if data['meta'].get('enabled', True) == False:
+        if not data["meta"].get("enabled", True):
             return report
 
-        if 'iocs' in data:
-            indicators = self._extract_indicators(data['iocs'], report)
+        if "iocs" in data:
+            indicators = self._extract_indicators(data["iocs"], report)
 
-        if 'query' in data:
+        if "query" in data:
             if indicators:
-                print("Error: this report already has IOCs, cannot also have a search query")
+                print(
+                    "Error: this report already has IOCs, cannot also have a search query"
+                )
             else:
-                queries = self._extract_query(data['query'], report)
+                queries = self._extract_query(data["query"], report)
 
         if indicators or queries:
             print("extracted {} indicators and {} queries".format(indicators, queries))
@@ -382,24 +401,25 @@ class FeedGenerator:
         """
 
         output = {}
-        output['feedinfo'] = {}
-        output['reports'] = []
+        output["feedinfo"] = {}
+        output["reports"] = []
 
         # Generate feedinfo (metadata about this feed)
-        required_fields = ['name', 'display_name',
-                           'provider_url', 'summary', 'tech_data']
+        required_fields = [
+            "name",
+            "display_name",
+            "provider_url",
+            "summary",
+            "tech_data",
+        ]
 
-        if not self._copy_keys(
-                self._config,
-                output['feedinfo'],
-                required_fields,
-                True):
+        if not self._copy_keys(self._config, output["feedinfo"], required_fields, True):
             return False
 
         if self._icon_large:
-            output['feedinfo']['icon'] = self._icon_large
+            output["feedinfo"]["icon"] = self._icon_large
         if self._icon_small:
-            output['feedinfo']['icon_small'] = self._icon_small
+            output["feedinfo"]["icon_small"] = self._icon_small
 
         for directory in self._data_dirs:
             self._process_directory(directory, output)
@@ -412,80 +432,10 @@ class FeedGenerator:
         repo = self._get_git_repo(data_dir)
 
         # Read each file and generate a report
-        #data_path = os.path.join(self._data_dir, '**/*.yaml')
-        #files = glob.iglob(data_path, recursive=True)
-        files = Path(data_dir).glob('**/*.yaml')
+        files = Path(data_dir).glob("**/*.yaml")
 
         for fn in files:
             print("reading file: {}".format(fn))
             report = self._parse_file(fn, data_dir, repo)
             if report:
-                output['reports'].append(report)
-
-
-def main():
-    """
-    Simple commandline wrapper around the main module.
-    """
-
-    parser = argparse.ArgumentParser(
-        description='Generate Carbon Black alliance feed from a collection of YAML files')
-    parser.add_argument(
-        '--data',
-        type=str,
-        help='directory containing YAML files (default: data/)',
-        default="data")
-    parser.add_argument(
-        '--config',
-        type=str,
-        help='configuation file (default: config.yaml)',
-        default="config.yaml")
-    parser.add_argument(
-        '--output',
-        type=str,
-        help='output JSON file (default: output.json)',
-        default="output.json")
-    parser.add_argument(
-        '--icon-large',
-        type=str,
-        help='large icon, recommended 370x97 (optional)',
-        default=None,
-        required=False)
-    parser.add_argument(
-        '--icon-small',
-        type=str,
-        help='small icon, recommended 100x100 (optional)',
-        default=None,
-        required=False)
-    parser.add_argument(
-        '--git-enabled',
-        help='enable git support (default: on)',
-        default=True,
-        action='store_true')
-    parser.add_argument(
-        '--git-strict',
-        help='error if files in git are untracked or modified (default: off)',
-        default=False,
-        action='store_true')
-
-    args = parser.parse_args()
-
-    builder = FeedGenerator(
-        args.config,
-        use_git=args.git_enabled,
-        git_strict=args.git_strict)
-
-    if args.icon_large and args.icon_small:
-        builder.add_icons(args.icon_large, args.icon_small)
-
-    builder.add_data_dir(args.data)
-    if builder.errors:
-        for err in builder.errors:
-            print("error: {}".format(err))
-    else:
-        with open(args.output, "w") as fh:
-            builder.generate_feed(fh)
-
-
-if __name__ == '__main__':
-    main()
+                output["reports"].append(report)
