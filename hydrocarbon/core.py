@@ -21,6 +21,7 @@ import base64
 import re
 import ipaddress
 import json
+import logging
 import hashlib
 import urllib.parse
 from io import BytesIO
@@ -30,8 +31,6 @@ from git import Repo
 from git.exc import InvalidGitRepositoryError
 from PIL import Image
 import yaml
-
-# TODO: Move to logging instead of print
 
 
 class FeedGenerator:
@@ -59,6 +58,7 @@ class FeedGenerator:
     _git_strict = False
     _icon_small = None
     _icon_large = None
+    _log = None
     _repo = None
     errors = []
 
@@ -66,6 +66,7 @@ class FeedGenerator:
         """
         Minimum required initialisation.
         """
+        self._log = logging.getLogger(__name__)
         self._init_regex()
         self._load_config(config_file)
         self._git_enabled = use_git
@@ -86,26 +87,17 @@ class FeedGenerator:
 
         return True
 
-    @staticmethod
-    def _convert_image(filename, optimum_width=0, optimum_height=0):
+    def _convert_image(self, filename, optimum_width=0, optimum_height=0):
         with Image.open(filename) as img:
             width, height = img.size
 
             if optimum_width and width != optimum_width:
-                # TODO: log an error
-                print(
-                    "Width of image {} does not match recommended {}".format(
-                        filename, optimum_width
-                    )
-                )
+                self._log.warning("Width of image %s does not match recommended %d",
+                                  filename, optimum_width)
 
             if optimum_height and height != optimum_height:
-                # TODO: log an error
-                print(
-                    "Height of image {} does not match recommended {}".format(
-                        filename, optimum_height
-                    )
-                )
+                self._log.warning(
+                    "Height of image %s does not match recommended %d", filename, optimum_height)
 
             output = BytesIO()
             img.save(output, format="PNG")
@@ -130,15 +122,14 @@ class FeedGenerator:
         except FileNotFoundError:
             self.errors.append("Configuration file {} not found!".format(config_fn))
 
-    @staticmethod
-    def _get_git_repo(repo_dir):
+    def _get_git_repo(self, repo_dir):
         """
         Check that a git repository can be correctly parsed.
         """
         try:
             repo = Repo(repo_dir, search_parent_directories=True)
         except InvalidGitRepositoryError:
-            print("can't open path as a git repo: {}".format(repo_dir))
+            self._log.error("Can't open path as a git repository: %s", repo_dir)
             return None
 
         return repo
@@ -159,7 +150,7 @@ class FeedGenerator:
         """
 
         if not self._regex_md5.match(value):
-            # TODO: Log an error
+            self._log.warning("Data does not validate as MD5 checksum: %s", value)
             return None
 
         return value.lower()
@@ -172,7 +163,7 @@ class FeedGenerator:
         try:
             ipaddress.ip_address(value)
         except ValueError:
-            # TODO: Log an error
+            self._log.warning("Data does not validate as IP address: %s", value)
             return None
 
         return value
@@ -189,13 +180,12 @@ class FeedGenerator:
         lower case version of the domain.
         """
         if not self._regex_dns.match(value):
-            # TODO: Log an error
+            self._log.warning("Data does not validate as a domain name: %s", value)
             return None
 
         return value.lower()
 
-    @staticmethod
-    def _copy_keys(source, dest, keys, required=True):
+    def _copy_keys(self, source, dest, keys, required=True):
         """
         Copy a set of keys from one dictionary to another.  If the required
         parameter is True then all keys _must_ exist in the source dict, or
@@ -206,13 +196,12 @@ class FeedGenerator:
                 dest[key] = source[key]
         except KeyError:
             if required:
-                print("warning: required field {} is missing".format(key))
+                self._log.error("Required field %s is missing", key)
                 return False
 
         return True
 
-    @staticmethod
-    def _extract_tags(report):
+    def _extract_tags(self, report):
 
         out = []
 
@@ -223,16 +212,16 @@ class FeedGenerator:
 
         # Validate it's an array
         if not isinstance(tags, (list,)):
-            print("Error: tags should be a list")
+            self._log.error("Tags should be a list")
             return None
 
         for tag in tags:
             if not tag.isalnum():
-                print("Error: tag is not alphanumeric!")
+                self._log.error("Tag is not alphanumeric")
                 continue
 
             if len(tag) > 32:
-                print("Error: tag is too long!")
+                self._log.error("Tag is too long")
                 continue
 
             out.append(tag)
@@ -253,8 +242,8 @@ class FeedGenerator:
 
             # Check if this file is dirty or untracked
             if relative_name in repo.untracked_files or relative_name in changed:
-                print(
-                    "warning: file is untracked or modified: {}".format(relative_name)
+                self._log.warning(
+                    "warning: file is untracked or modified: %s", relative_name
                 )
                 if self._git_strict:
                     self.errors.append(
@@ -286,7 +275,7 @@ class FeedGenerator:
 
         for key, data in iocs.items():
             if key not in valid_keys:
-                # TODO: Log an error
+                self._log.warning("Found unexpected item %s", key)
                 continue
 
             report["iocs"][key] = set()
@@ -297,19 +286,17 @@ class FeedGenerator:
                 validated = validator(item)
 
                 if validated:
-                    # TODO: Unique the indicators here (consider using a set)
                     indicators += 1
                     report["iocs"][key].add(validated)
                 else:
-                    print("Couldn't validate indicator {} as {}".format(item, key))
+                    self._log.error("Couldn't validate indicator %s as %s", item, key)
 
             # Convert back to list for JSON serialisation
             report["iocs"][key] = list(report["iocs"][key])
 
         return indicators
 
-    @staticmethod
-    def _extract_query(query, report):
+    def _extract_query(self, query, report):
 
         qry = {}
         valid_types = ["events", "modules"]
@@ -318,21 +305,20 @@ class FeedGenerator:
             if query["type"] in valid_types:
                 qry["index_type"] = query["type"]
             else:
-                # TODO: Log an error
+                self._log.error("Query type should be 'events' or 'modules'")
                 return 0
 
-            # TODO: Check it doesn't start q=
             search = query["search"]
 
             if search.startswith("q="):
-                print(("Warning: search query starts with q=, this "
-                       "is not necessary and should be removed"))
+                self._log.warning(("Search query starts with q=, "
+                                   "this is not necessary and should be removed"))
                 search = search[2:]
 
             qry["search_query"] = "q={}".format(urllib.parse.quote(search))
 
         except KeyError:
-            print("Error: did not find required query data, please see the template")
+            self._log.error("Did not find required query data, please see the template")
             return 0
 
         report["iocs"]["query"] = [qry]
@@ -350,13 +336,12 @@ class FeedGenerator:
         with open(str(filename), "r") as fh:
             data = yaml.load(fh)
 
-        # TODO: Check it has the basic keys
-        if not "meta" in data:
-            print("error: meta section is missing")
+        if "meta" not in data:
+            self._log.error("Expected section named 'meta'")
             return None
 
         if not ("query" in data or "iocs" in data):
-            print("error: data does not contain a query or iocs")
+            self._log.error("Data does not contain 'query' or 'iocs'")
             return None
 
         required_fields = ["link", "title", "score"]
@@ -384,17 +369,17 @@ class FeedGenerator:
 
         if "query" in data:
             if indicators:
-                print(
-                    "Error: this report already has IOCs, cannot also have a search query"
+                self._log.error(
+                    "This report already has IOCs, cannot also have a search query"
                 )
             else:
                 queries = self._extract_query(data["query"], report)
 
         if indicators or queries:
-            print("extracted {} indicators and {} queries".format(indicators, queries))
+            self._log.info("Extracted %d indicators and %d queries", indicators, queries)
             return report
 
-        print("didn't extract any indicators from file {}".format(filename))
+        self._log.warning("Didn't extract any indicators from file %s", filename)
         return None
 
     def generate_feed(self, output_fh):
@@ -438,7 +423,7 @@ class FeedGenerator:
         files = Path(data_dir).glob("**/*.yaml")
 
         for fn in files:
-            print("reading file: {}".format(fn))
+            self._log.info("Processing file: %s", fn)
             report = self._parse_file(fn, data_dir, repo)
             if report:
                 output["reports"].append(report)

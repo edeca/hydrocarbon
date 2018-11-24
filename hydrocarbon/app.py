@@ -4,6 +4,7 @@ allowing hydrocarbon to be run directly as a tool.
 """
 
 import argparse
+import logging
 from .core import FeedGenerator
 
 
@@ -11,6 +12,8 @@ def main():
     """
     Simple commandline wrapper around the main module.
     """
+
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(
         description=("Generate Carbon Black alliance feed from a "
