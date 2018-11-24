@@ -62,7 +62,9 @@ The tool can be used from within your own Python scripts, see the FAQ.
 ## Why integrate with git?
 
 The Carbon Black server needs a timestamp for every report.  Using git gives 
-an accurate timestamp (from the latest commit) which does not change.
+an accurate timestamp (from the latest commit) which does not change.  This
+ensures that 'incremental' update mode is efficient, only changed reports will
+be parsed.
 
 It is possible to use without git.  However, this is not recommended for
 anything other than testing.
