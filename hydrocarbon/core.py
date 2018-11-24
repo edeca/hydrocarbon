@@ -422,8 +422,8 @@ class FeedGenerator:
         # Read each file and generate a report
         files = Path(data_dir).glob("**/*.yaml")
 
-        for fn in files:
-            self._log.info("Processing file: %s", fn)
-            report = self._parse_file(fn, data_dir, repo)
+        for file in files:
+            self._log.info("Processing file: %s", file)
+            report = self._parse_file(file, data_dir, repo)
             if report:
                 output["reports"].append(report)
