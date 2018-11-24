@@ -1,0 +1,37 @@
+meta:
+  # These fields are required
+  title: IOCs from NCC Group APT123 blog post
+  link: https://nccgroup.com/blog/
+  score: 50 # range -100 to 100
+
+  # These fields are optional
+  description: |
+          This is a longer description which is completely optional,
+          however you could use it to provide more context if you want.
+          The pipe symbol is important and specifies a multi-line
+          string.
+  tags: [ optional,tags,comma,separated ]
+
+  # Set to false to disable & delete the IOCs.  *Do not* simply
+  # delete the file itself, as the CB server will not remove outdated
+  # indicators.
+  enabled: true
+
+  # This field is optional but useful for you to track who added
+  # a report.
+  author: David Cannings
+
+# The technical indicators to push to Carbon Black.  At least one
+# is required.  Unused keys can be removed.
+iocs:
+  ipv4:
+    - 203.0.113.17
+
+  ipv6:
+    - 2001:DB8::1
+
+  dns:
+    - rat.example.com
+
+  md5:
+    - 79054025255fb1a26e4bc422aef54eb4

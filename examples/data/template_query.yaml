@@ -1,0 +1,36 @@
+meta:
+  # These fields are required
+  title: An example query
+  link: https://nccgroup.com/blog/
+  score: 50 # range -100 to 100
+
+  # These fields are optional
+  description: |
+          This is a longer description which is completely optional,
+          however you could use it to provide more context if you want.
+          The pipe symbol is important and specifies a multi-line
+          string.
+  tags: [ optional,tags,comma,separated ]
+
+  # Set to false to disable & delete the IOCs.  *Do not* simply
+  # delete the file itself, as the CB server will not remove outdated
+  # indicators.
+  enabled: true
+
+  # This field is optional but useful for you to track who added
+  # a report.
+  author: David Cannings
+
+# A file can only have *one* query and there *must not* be any other
+# technical IOCs.  This is a limitation of how Carbon Black works and
+# nothing to do with the hydrocarbon tool.
+query:
+  # Must be 'events' or 'modules'
+  type: events
+
+  # The raw search query, e.g. paste from the "Process Search" page in
+  # Carbon Black.  Encoding is automatically handled, please *do not*
+  # encode here.
+  #
+  # The q= will be added automatically if missing.
+  search: is_executable_image:true AND domain:example.com

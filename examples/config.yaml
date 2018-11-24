@@ -1,0 +1,16 @@
+# Example configuration file for hydrocarbon
+#
+# See https://github.com/carbonblack/cbfeeds/ for documentation of the
+# various options.
+
+name: my_test_feed
+display_name: A test Carbon Black Alliance feed
+provider_url: https://www.example.com
+summary: A most excellent threat intelligence feed, containing super indicators
+tech_data: This feed contains a combination of IP, domain and search queries.
+
+# Must be one of hte following options:
+# Partner, Open Source, Carbon Black First Party, Connectors, Carbon Black, Meta-feed
+#
+# You most likely want "Partner" or "Open Source"
+category: Partner
