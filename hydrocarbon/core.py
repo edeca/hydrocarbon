@@ -117,8 +117,8 @@ class FeedGenerator:
         """
 
         try:
-            with open(config_fn, "r") as fh:
-                self._config = yaml.load(fh)
+            with open(config_fn, 'r') as fh:
+                self._config = yaml.safe_load(fh)
         except FileNotFoundError:
             self.errors.append("Configuration file {} not found!".format(config_fn))
 
@@ -333,8 +333,8 @@ class FeedGenerator:
         indicators = 0
         queries = 0
 
-        with open(str(filename), "r") as fh:
-            data = yaml.load(fh)
+        with open(str(filename), 'r') as fh:
+            data = yaml.safe_load(fh)
 
         if "meta" not in data:
             self._log.error("Expected section named 'meta'")
