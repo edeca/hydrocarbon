@@ -4,15 +4,12 @@ feed from structured data.  It is useful for use in small deployments
 where a full threat intelligence platform is impractical.  For example, it
 can be used to supply the Carbon Black platform with indicators specific
 to your organisation, complementing public feeds.
-
 Input data is structured YAML which closely matches the required format.
 Technical indicators are validated to avoid pushing broken data to the
 CB platform.
-
 The module is designed to be used with data from a git repository, which
 provides useful tracking of modification times.  However, if git is not
 available then filesystem modification times will be used instead.
-
 The resulting JSON can be hosted on any webserver (preferably with
 authentication enabled) to serve the
 """
@@ -37,15 +34,12 @@ class FeedGenerator:
     """
     The main HydroCarbon class, used to parse data and write the JSON to a
     filehandle.
-
     Use like:
-
         from hydrocarbon import FeedGenerator
         builder = FeedGenerator('config.yaml')
         builder.add_data_dir('/path/to/git/repo')
         with open('output.json', 'w') as fh:
             builder.generate_feed(fh)
-
         if builder.errors:
             print('Found errors')
             for err in builder.errors:
@@ -139,9 +133,10 @@ class FeedGenerator:
         Precompile frequently used regular expressions for speed.
         """
         self._regex_md5 = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
-        self._regex_dns = re.compile(
-            r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE
-        )
+        self._regex_sha256 = re.compile(r"[0-9a-f]{64}", re.IGNORECASE)
+        self._regex_ja3 = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
+        self._regex_ja3s = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
+        self._regex_dns = re.compile(r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE)
 
     def _validate_md5(self, value):
         """
@@ -155,6 +150,42 @@ class FeedGenerator:
 
         return value.lower()
 
+    def _validate_sha256(self, value):
+        """
+        Validates an SHA256 hash using regular expressions.  Returns the
+        lower case version of the hash.
+        """
+
+        if not self._regex_sha256.match(value):
+            self._log.warning("Data does not validate as SHA256 checksum: %s", value)
+            return None
+
+        return value.lower()
+
+    def _validate_ja3(self, value):
+        """
+        Validates an ja3 hash using regular expressions.  Returns the
+        lower case version of the hash.
+        """
+
+        if not self._regex_ja3.match(value):
+            self._log.warning("Data does not validate as JA3 checksum: %s", value)
+            return None
+
+        return value.lower()
+
+    def _validate_ja3s(self, value):
+        """
+        Validates an ja3s hash using regular expressions.  Returns the
+        lower case version of the hash.
+        """
+
+        if not self._regex_ja3s.match(value):
+            self._log.warning("Data does not validate as JA3S checksum: %s", value)
+            return None
+
+        return value.lower()
+        
     def _validate_ipv4(self, value):  # pylint: disable=no-self-use
         """
         Validates an IP address using ipaddress module.  Needs Python 3.3+ or
@@ -271,7 +302,7 @@ class FeedGenerator:
         """
 
         indicators = 0
-        valid_keys = ["md5", "ipv4", "ipv6", "dns"]
+        valid_keys = ["md5", "ipv4", "ipv6", "dns", "sha256", "ja3", "ja3s"]
 
         for key, data in iocs.items():
             if key not in valid_keys:
