@@ -4,9 +4,11 @@ feed from structured data.  It is useful for use in small deployments
 where a full threat intelligence platform is impractical.  For example, it
 can be used to supply the Carbon Black platform with indicators specific
 to your organisation, complementing public feeds.
+
 Input data is structured YAML which closely matches the required format.
 Technical indicators are validated to avoid pushing broken data to the
 CB platform.
+
 The module is designed to be used with data from a git repository, which
 provides useful tracking of modification times.  However, if git is not
 available then filesystem modification times will be used instead.
@@ -86,12 +88,18 @@ class FeedGenerator:
             width, height = img.size
 
             if optimum_width and width != optimum_width:
-                self._log.warning("Width of image %s does not match recommended %d",
-                                  filename, optimum_width)
+                self._log.warning(
+                    "Width of image %s does not match recommended %d",
+                    filename,
+                    optimum_width,
+                )
 
             if optimum_height and height != optimum_height:
                 self._log.warning(
-                    "Height of image %s does not match recommended %d", filename, optimum_height)
+                    "Height of image %s does not match recommended %d",
+                    filename,
+                    optimum_height,
+                )
 
             output = BytesIO()
             img.save(output, format="PNG")
@@ -111,7 +119,7 @@ class FeedGenerator:
         """
 
         try:
-            with open(config_fn, 'r') as fh:
+            with open(config_fn, "r") as fh:
                 self._config = yaml.safe_load(fh)
         except FileNotFoundError:
             self.errors.append("Configuration file {} not found!".format(config_fn))
@@ -133,10 +141,11 @@ class FeedGenerator:
         Precompile frequently used regular expressions for speed.
         """
         self._regex_md5 = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
+        self._regex_ja3 = self._regex_md5
         self._regex_sha256 = re.compile(r"[0-9a-f]{64}", re.IGNORECASE)
-        self._regex_ja3 = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
-        self._regex_ja3s = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
-        self._regex_dns = re.compile(r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE)
+        self._regex_dns = re.compile(
+            r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE
+        )
 
     def _validate_md5(self, value):
         """
@@ -180,12 +189,12 @@ class FeedGenerator:
         lower case version of the hash.
         """
 
-        if not self._regex_ja3s.match(value):
+        if not self._regex_ja3.match(value):
             self._log.warning("Data does not validate as JA3S checksum: %s", value)
             return None
 
         return value.lower()
-        
+
     def _validate_ipv4(self, value):  # pylint: disable=no-self-use
         """
         Validates an IP address using ipaddress module.  Needs Python 3.3+ or
@@ -342,8 +351,12 @@ class FeedGenerator:
             search = query["search"]
 
             if search.startswith("q="):
-                self._log.warning(("Search query starts with q=, "
-                                   "this is not necessary and should be removed"))
+                self._log.warning(
+                    (
+                        "Search query starts with q=, "
+                        "this is not necessary and should be removed"
+                    )
+                )
                 search = search[2:]
 
             qry["search_query"] = "q={}".format(urllib.parse.quote(search))
@@ -360,11 +373,11 @@ class FeedGenerator:
         Parse a single data file and return the corresponding report
         structure, or None if parsing fails.
         """
-        report = {'iocs': {}}
+        report = {"iocs": {}}
         indicators = 0
         queries = 0
 
-        with open(str(filename), 'r') as fh:
+        with open(str(filename), "r") as fh:
             data = yaml.safe_load(fh)
 
         if "meta" not in data:
@@ -407,7 +420,9 @@ class FeedGenerator:
                 queries = self._extract_query(data["query"], report)
 
         if indicators or queries:
-            self._log.info("Extracted %d indicators and %d queries", indicators, queries)
+            self._log.info(
+                "Extracted %d indicators and %d queries", indicators, queries
+            )
             return report
 
         self._log.warning("Didn't extract any indicators from file %s", filename)

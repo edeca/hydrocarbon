@@ -35,3 +35,12 @@ iocs:
 
   md5:
     - 79054025255fb1a26e4bc422aef54eb4
+
+  ja3:
+    - e7d705a3286e19ea42f587b344ee6865
+
+  ja3s:
+    - a95ca7eab4d47d051a5cd4fb7b6005dc
+
+  sha256:
+    - d91785dcd2ceb367f0c95983798b4b087ba1b14023804e9de59173ad857c7a37
