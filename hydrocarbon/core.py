@@ -12,7 +12,6 @@ CB platform.
 The module is designed to be used with data from a git repository, which
 provides useful tracking of modification times.  However, if git is not
 available then filesystem modification times will be used instead.
-
 The resulting JSON can be hosted on any webserver (preferably with
 authentication enabled) to serve the
 """
@@ -37,15 +36,12 @@ class FeedGenerator:
     """
     The main HydroCarbon class, used to parse data and write the JSON to a
     filehandle.
-
     Use like:
-
         from hydrocarbon import FeedGenerator
         builder = FeedGenerator('config.yaml')
         builder.add_data_dir('/path/to/git/repo')
         with open('output.json', 'w') as fh:
             builder.generate_feed(fh)
-
         if builder.errors:
             print('Found errors')
             for err in builder.errors:
@@ -92,12 +88,18 @@ class FeedGenerator:
             width, height = img.size
 
             if optimum_width and width != optimum_width:
-                self._log.warning("Width of image %s does not match recommended %d",
-                                  filename, optimum_width)
+                self._log.warning(
+                    "Width of image %s does not match recommended %d",
+                    filename,
+                    optimum_width,
+                )
 
             if optimum_height and height != optimum_height:
                 self._log.warning(
-                    "Height of image %s does not match recommended %d", filename, optimum_height)
+                    "Height of image %s does not match recommended %d",
+                    filename,
+                    optimum_height,
+                )
 
             output = BytesIO()
             img.save(output, format="PNG")
@@ -117,7 +119,7 @@ class FeedGenerator:
         """
 
         try:
-            with open(config_fn, 'r') as fh:
+            with open(config_fn, "r") as fh:
                 self._config = yaml.safe_load(fh)
         except FileNotFoundError:
             self.errors.append("Configuration file {} not found!".format(config_fn))
@@ -139,6 +141,8 @@ class FeedGenerator:
         Precompile frequently used regular expressions for speed.
         """
         self._regex_md5 = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
+        self._regex_ja3 = self._regex_md5
+        self._regex_sha256 = re.compile(r"[0-9a-f]{64}", re.IGNORECASE)
         self._regex_dns = re.compile(
             r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE
         )
@@ -151,6 +155,42 @@ class FeedGenerator:
 
         if not self._regex_md5.match(value):
             self._log.warning("Data does not validate as MD5 checksum: %s", value)
+            return None
+
+        return value.lower()
+
+    def _validate_sha256(self, value):
+        """
+        Validates an SHA256 hash using regular expressions.  Returns the
+        lower case version of the hash.
+        """
+
+        if not self._regex_sha256.match(value):
+            self._log.warning("Data does not validate as SHA256 checksum: %s", value)
+            return None
+
+        return value.lower()
+
+    def _validate_ja3(self, value):
+        """
+        Validates an ja3 hash using regular expressions.  Returns the
+        lower case version of the hash.
+        """
+
+        if not self._regex_ja3.match(value):
+            self._log.warning("Data does not validate as JA3 checksum: %s", value)
+            return None
+
+        return value.lower()
+
+    def _validate_ja3s(self, value):
+        """
+        Validates an ja3s hash using regular expressions.  Returns the
+        lower case version of the hash.
+        """
+
+        if not self._regex_ja3.match(value):
+            self._log.warning("Data does not validate as JA3S checksum: %s", value)
             return None
 
         return value.lower()
@@ -271,7 +311,7 @@ class FeedGenerator:
         """
 
         indicators = 0
-        valid_keys = ["md5", "ipv4", "ipv6", "dns"]
+        valid_keys = ["md5", "ipv4", "ipv6", "dns", "sha256", "ja3", "ja3s"]
 
         for key, data in iocs.items():
             if key not in valid_keys:
@@ -311,8 +351,12 @@ class FeedGenerator:
             search = query["search"]
 
             if search.startswith("q="):
-                self._log.warning(("Search query starts with q=, "
-                                   "this is not necessary and should be removed"))
+                self._log.warning(
+                    (
+                        "Search query starts with q=, "
+                        "this is not necessary and should be removed"
+                    )
+                )
                 search = search[2:]
 
             qry["search_query"] = "q={}".format(urllib.parse.quote(search))
@@ -329,11 +373,11 @@ class FeedGenerator:
         Parse a single data file and return the corresponding report
         structure, or None if parsing fails.
         """
-        report = {'iocs': {}}
+        report = {"iocs": {}}
         indicators = 0
         queries = 0
 
-        with open(str(filename), 'r') as fh:
+        with open(str(filename), "r") as fh:
             data = yaml.safe_load(fh)
 
         if "meta" not in data:
@@ -376,7 +420,9 @@ class FeedGenerator:
                 queries = self._extract_query(data["query"], report)
 
         if indicators or queries:
-            self._log.info("Extracted %d indicators and %d queries", indicators, queries)
+            self._log.info(
+                "Extracted %d indicators and %d queries", indicators, queries
+            )
             return report
 
         self._log.warning("Didn't extract any indicators from file %s", filename)
