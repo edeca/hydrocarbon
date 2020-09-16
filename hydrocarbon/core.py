@@ -144,7 +144,7 @@ class FeedGenerator:
         self._regex_ja3 = self._regex_md5
         self._regex_sha256 = re.compile(r"[0-9a-f]{64}", re.IGNORECASE)
         self._regex_dns = re.compile(
-            r"((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}", re.IGNORECASE
+            r"((xn--)?[a-z0-9_-]+(-[a-z0-9_-]+)*\.)+[a-z]{2,}", re.IGNORECASE
         )
 
     def _validate_md5(self, value):
