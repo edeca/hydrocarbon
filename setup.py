@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="hydrocarbon",
-    version="0.0.2",
+    version="0.0.3",
     author="David Cannings",
     author_email="david@edeca.net",
     description="Generate a Carbon Black alliance feed in JSON format from a git repository",
