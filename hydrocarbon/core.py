@@ -359,7 +359,7 @@ class FeedGenerator:
                 )
                 search = search[2:]
 
-            qry["search_query"] = "q={}".format(urllib.parse.quote(search))
+            qry["search_query"] = "q={}".format(urllib.parse.quote(search, safe=""))
 
         except KeyError:
             self._log.error("Did not find required query data, please see the template")
